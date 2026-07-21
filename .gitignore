@@ -1,5 +1,13 @@
-# Object file
+# Object files
 *.o
 
 # Ada Library Information
 *.ali
+
+# Executables
+*.exe
+dekker
+dekker_tests
+
+# GPRBuild files
+*.bexch
