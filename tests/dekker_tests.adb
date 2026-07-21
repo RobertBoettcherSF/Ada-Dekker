@@ -73,6 +73,11 @@ procedure Dekker_Tests is
    Done_Signal_P0 : Ada.Synchronous_Task_Control.Suspension_Object;
    Done_Signal_P1 : Ada.Synchronous_Task_Control.Suspension_Object;
 
+   --  Single pair of worker tasks - declared at procedure level
+   --  These tasks will be reused for all tests
+   W0 : Test_Worker (P0);
+   W1 : Test_Worker (P1);
+
    --  Task type for worker processes
    task type Test_Worker (ID : Process_Id);
 
@@ -86,142 +91,109 @@ procedure Dekker_Tests is
          Other := P0;
       end if;
 
-      --  Wait for start signal
-      Ada.Synchronous_Task_Control.Suspend_Until_True (Start_Signal);
+      loop  -- Infinite loop - tasks run forever, controlled by Start_Signal
+         --  Wait for start signal
+         Ada.Synchronous_Task_Control.Suspend_Until_True (Start_Signal);
 
-      for I in 1 .. Test_Iterations loop
-         case Current_Variant is
-            
-            when Naive_Turn_Taking =>
-               --  Variant 1: Strict alternation algorithm
-               while Turn /= ID loop
-                  delay 0.0; -- Yield
-               end loop;
+         for I in 1 .. Test_Iterations loop
+            case Current_Variant is
                
-               --  Check mutual exclusion before entering
-               if In_Critical_Section (Other) then
-                  Mutual_Exclusion_Violation := True;
-               end if;
-               
-               In_Critical_Section (ID) := True;
-               
-               --  === CRITICAL SECTION ===
-               Shared_Counter := Shared_Counter + 1;
-               Entry_Count (ID) := Entry_Count (ID) + 1;
-               
-               In_Critical_Section (ID) := False;
-               
-               --  === REMAINDER SECTION ===
-               Turn := Other;
-
-            when Starvation_Susceptible =>
-               --  Variant 2: Missing the 'if Turn /= ID' check
-               Wants_To_Enter (ID) := True;
-               while Wants_To_Enter (Other) loop
-                  Wants_To_Enter (ID) := False;
+               when Naive_Turn_Taking =>
+                  --  Variant 1: Strict alternation algorithm
                   while Turn /= ID loop
-                     delay 0.0;
+                     delay 0.0; -- Yield
                   end loop;
-                  Wants_To_Enter (ID) := True;
-               end loop;
-               
-               --  Check mutual exclusion
-               if In_Critical_Section (Other) then
-                  Mutual_Exclusion_Violation := True;
-               end if;
-               
-               In_Critical_Section (ID) := True;
-               
-               --  === CRITICAL SECTION ===
-               Shared_Counter := Shared_Counter + 1;
-               Entry_Count (ID) := Entry_Count (ID) + 1;
-               
-               In_Critical_Section (ID) := False;
-               
-               --  === REMAINDER SECTION ===
-               Turn := Other;
-               Wants_To_Enter (ID) := False;
+                  
+                  --  Check mutual exclusion before entering
+                  if In_Critical_Section (Other) then
+                     Mutual_Exclusion_Violation := True;
+                  end if;
+                  
+                  In_Critical_Section (ID) := True;
+                  
+                  --  === CRITICAL SECTION ===
+                  Shared_Counter := Shared_Counter + 1;
+                  Entry_Count (ID) := Entry_Count (ID) + 1;
+                  
+                  In_Critical_Section (ID) := False;
+                  
+                  --  === REMAINDER SECTION ===
+                  Turn := Other;
 
-            when Full_Dekker =>
-               --  Variant 3: The complete and correct Dekker's algorithm
-               Wants_To_Enter (ID) := True;
-               while Wants_To_Enter (Other) loop
-                  if Turn /= ID then
+               when Starvation_Susceptible =>
+                  --  Variant 2: Missing the 'if Turn /= ID' check
+                  Wants_To_Enter (ID) := True;
+                  while Wants_To_Enter (Other) loop
                      Wants_To_Enter (ID) := False;
                      while Turn /= ID loop
                         delay 0.0;
                      end loop;
                      Wants_To_Enter (ID) := True;
+                  end loop;
+                  
+                  --  Check mutual exclusion
+                  if In_Critical_Section (Other) then
+                     Mutual_Exclusion_Violation := True;
                   end if;
-               end loop;
-               
-               --  Check mutual exclusion
-               if In_Critical_Section (Other) then
-                  Mutual_Exclusion_Violation := True;
-               end if;
-               
-               In_Critical_Section (ID) := True;
-               
-               --  === CRITICAL SECTION ===
-               Shared_Counter := Shared_Counter + 1;
-               Entry_Count (ID) := Entry_Count (ID) + 1;
-               
-               In_Critical_Section (ID) := False;
-               
-               --  === REMAINDER SECTION ===
-               Turn := Other;
-               Wants_To_Enter (ID) := False;
+                  
+                  In_Critical_Section (ID) := True;
+                  
+                  --  === CRITICAL SECTION ===
+                  Shared_Counter := Shared_Counter + 1;
+                  Entry_Count (ID) := Entry_Count (ID) + 1;
+                  
+                  In_Critical_Section (ID) := False;
+                  
+                  --  === REMAINDER SECTION ===
+                  Turn := Other;
+                  Wants_To_Enter (ID) := False;
 
-         end case;
-         
-         --  Simulate work outside of the critical section
-         delay To_Duration (Milliseconds (1));
-      end loop;
-      
-      --  Signal that this worker is done
-      if ID = P0 then
-         Ada.Synchronous_Task_Control.Set_True (Done_Signal_P0);
-      else
-         Ada.Synchronous_Task_Control.Set_True (Done_Signal_P1);
-      end if;
-      
-   end Test_Worker;
+               when Full_Dekker =>
+                  --  Variant 3: The complete and correct Dekker's algorithm
+                  Wants_To_Enter (ID) := True;
+                  while Wants_To_Enter (Other) loop
+                     if Turn /= ID then
+                        Wants_To_Enter (ID) := False;
+                        while Turn /= ID loop
+                           delay 0.0;
+                        end loop;
+                        Wants_To_Enter (ID) := True;
+                     end if;
+                  end loop;
+                  
+                  --  Check mutual exclusion
+                  if In_Critical_Section (Other) then
+                     Mutual_Exclusion_Violation := True;
+                  end if;
+                  
+                  In_Critical_Section (ID) := True;
+                  
+                  --  === CRITICAL SECTION ===
+                  Shared_Counter := Shared_Counter + 1;
+                  Entry_Count (ID) := Entry_Count (ID) + 1;
+                  
+                  In_Critical_Section (ID) := False;
+                  
+                  --  === REMAINDER SECTION ===
+                  Turn := Other;
+                  Wants_To_Enter (ID) := False;
 
-   --  Task type for Naive Turn Taking test
-   task type Naive_Worker (ID : Process_Id; Count : Integer);
-
-   task body Naive_Worker is
-      Other : Process_Id;
-   begin
-      if ID = P0 then
-         Other := P1;
-      else
-         Other := P0;
-      end if;
-
-      --  Wait for start signal
-      Ada.Synchronous_Task_Control.Suspend_Until_True (Start_Signal);
-
-      for I in 1 .. Count loop
-         while Turn /= ID loop
-            delay 0.0;
+            end case;
+            
+            --  Simulate work outside of the critical section
+            delay To_Duration (Milliseconds (1));
          end loop;
          
-         Shared_Counter := Shared_Counter + 1;
-         Entry_Count (ID) := Entry_Count (ID) + 1;
+         --  Signal that this worker is done with this test
+         if ID = P0 then
+            Ada.Synchronous_Task_Control.Set_True (Done_Signal_P0);
+         else
+            Ada.Synchronous_Task_Control.Set_True (Done_Signal_P1);
+         end if;
          
-         Turn := Other;
-         delay To_Duration (Milliseconds (1));
       end loop;
       
-      --  Signal that this worker is done
-      if ID = P0 then
-         Ada.Synchronous_Task_Control.Set_True (Done_Signal_P0);
-      else
-         Ada.Synchronous_Task_Control.Set_True (Done_Signal_P1);
-      end if;
-      
-   end Naive_Worker;
+   end Test_Worker;
 
    --  Reset all shared state for a new test
    procedure Reset_State is
@@ -239,7 +211,7 @@ procedure Dekker_Tests is
    end Reset_State;
 
    --  Run workers and wait for completion
-   procedure Run_And_Wait_Workers (W0 : Test_Worker; W1 : Test_Worker) is
+   procedure Run_And_Wait_Workers is
    begin
       --  Reset the done signals
       Ada.Synchronous_Task_Control.Set_False (Done_Signal_P0);
@@ -259,28 +231,6 @@ procedure Dekker_Tests is
       Ada.Synchronous_Task_Control.Set_False (Start_Signal);
       
    end Run_And_Wait_Workers;
-
-   --  Run naive workers and wait for completion
-   procedure Run_And_Wait_Naive_Workers (W0 : Naive_Worker; W1 : Naive_Worker) is
-   begin
-      --  Reset the done signals
-      Ada.Synchronous_Task_Control.Set_False (Done_Signal_P0);
-      Ada.Synchronous_Task_Control.Set_False (Done_Signal_P1);
-      
-      --  Start both workers by setting the start signal
-      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
-      
-      --  Wait for both workers to signal completion (max 5 seconds total)
-      for I in 1 .. 50 loop
-         delay To_Duration (Milliseconds (100));
-         exit when Ada.Synchronous_Task_Control.Current_State (Done_Signal_P0) 
-                   and Ada.Synchronous_Task_Control.Current_State (Done_Signal_P1);
-      end loop;
-      
-      --  Reset start signal for next test
-      Ada.Synchronous_Task_Control.Set_False (Start_Signal);
-      
-   end Run_And_Wait_Naive_Workers;
 
    --  ===================================================================
    --  TEST GROUP 1: Basic State Verification (Tests 1.1 - 1.9)
@@ -355,8 +305,6 @@ procedure Dekker_Tests is
    
    --  2.1: Full Dekker maintains mutual exclusion
    procedure Test_2_1_Full_Dekker_Mutual_Exclusion is
-      W0 : Test_Worker (P0);
-      W1 : Test_Worker (P1);
    begin
       Put_Line ("");
       Put_Line ("TEST 2.1: Full Dekker - Mutual Exclusion");
@@ -364,7 +312,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      Run_And_Wait_Workers (W0, W1);
+      Run_And_Wait_Workers;
       
       Assert (Mutual_Exclusion_Violation = False, 
               "No mutual exclusion violation detected");
@@ -377,8 +325,6 @@ procedure Dekker_Tests is
 
    --  2.2: Full Dekker ensures progress
    procedure Test_2_2_Full_Dekker_Progress is
-      W0 : Test_Worker (P0);
-      W1 : Test_Worker (P1);
    begin
       Put_Line ("");
       Put_Line ("TEST 2.2: Full Dekker - Progress");
@@ -386,7 +332,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      Run_And_Wait_Workers (W0, W1);
+      Run_And_Wait_Workers;
       
       Assert (Entry_Count (P0) = Test_Iterations, 
               "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
@@ -398,8 +344,6 @@ procedure Dekker_Tests is
 
    --  2.3: Full Dekker - No starvation
    procedure Test_2_3_Full_Dekker_No_Starvation is
-      W0 : Test_Worker (P0);
-      W1 : Test_Worker (P1);
    begin
       Put_Line ("");
       Put_Line ("TEST 2.3: Full Dekker - No Starvation");
@@ -407,7 +351,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      Run_And_Wait_Workers (W0, W1);
+      Run_And_Wait_Workers;
       
       Assert (Entry_Count (P0) > 0, "P0 got access");
       Assert (Entry_Count (P1) > 0, "P1 got access");
@@ -418,8 +362,6 @@ procedure Dekker_Tests is
 
    --  2.4: No deadlock in Full Dekker
    procedure Test_2_4_No_Deadlock is
-      W0 : Test_Worker (P0);
-      W1 : Test_Worker (P1);
    begin
       Put_Line ("");
       Put_Line ("TEST 2.4: No Deadlock in Full Dekker");
@@ -427,7 +369,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      Run_And_Wait_Workers (W0, W1);
+      Run_And_Wait_Workers;
       
       Assert (Shared_Counter > 0, 
               "System made progress (no deadlock): " & 
@@ -442,8 +384,6 @@ procedure Dekker_Tests is
    
    --  3.1: Naive Turn Taking with equal iterations
    procedure Test_3_1_Naive_Turn_Taking_Equal is
-      W0 : Naive_Worker (P0, 5);
-      W1 : Naive_Worker (P1, 5);
    begin
       Put_Line ("");
       Put_Line ("TEST 3.1: Naive Turn Taking - Equal Iterations");
@@ -451,14 +391,15 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Naive_Turn_Taking;
       
-      Run_And_Wait_Naive_Workers (W0, W1);
+      Run_And_Wait_Workers;
       
-      Assert (Entry_Count (P0) = 5, 
-              "P0 completed 5 iterations: " & Integer'Image(Entry_Count (P0)));
-      Assert (Entry_Count (P1) = 5, 
-              "P1 completed 5 iterations: " & Integer'Image(Entry_Count (P1)));
-      Assert (Shared_Counter = 10, 
-              "Total counter = " & Integer'Image(Shared_Counter) & " (Expected: 10)");
+      Assert (Entry_Count (P0) = Test_Iterations, 
+              "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
+      Assert (Entry_Count (P1) = Test_Iterations, 
+              "P1 completed all iterations: " & Integer'Image(Entry_Count (P1)));
+      Assert (Shared_Counter = Test_Iterations * 2, 
+              "Total counter = " & Integer'Image(Shared_Counter) & " (Expected: " & 
+              Integer'Image(Test_Iterations * 2) & ")");
    end Test_3_1_Naive_Turn_Taking_Equal;
 
    --  ===================================================================
@@ -467,8 +408,6 @@ procedure Dekker_Tests is
    
    --  4.1: Starvation Susceptible fairness
    procedure Test_4_1_Starvation_Susceptible_Fairness is
-      W0 : Test_Worker (P0);
-      W1 : Test_Worker (P1);
    begin
       Put_Line ("");
       Put_Line ("TEST 4.1: Starvation Susceptible - Fairness");
@@ -476,7 +415,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Starvation_Susceptible;
       
-      Run_And_Wait_Workers (W0, W1);
+      Run_And_Wait_Workers;
       
       Assert (Entry_Count (P0) > 0, "P0 entered at least once");
       Assert (Entry_Count (P1) > 0, "P1 entered at least once");
