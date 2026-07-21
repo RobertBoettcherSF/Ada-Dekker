@@ -166,7 +166,7 @@ procedure Dekker_Tests is
          end case;
          
          --  Simulate work outside of the critical section
-         delay To_Duration (Milliseconds (5));
+         delay To_Duration (Milliseconds (1));
       end loop;
       
    end Test_Worker;
@@ -192,7 +192,7 @@ procedure Dekker_Tests is
          Entry_Count (ID) := Entry_Count (ID) + 1;
          
          Turn := Other;
-         delay To_Duration (Milliseconds (5));
+         delay To_Duration (Milliseconds (1));
       end loop;
       
    end Uneven_Worker;
@@ -209,7 +209,7 @@ procedure Dekker_Tests is
    end Reset_State;
 
    --  ===================================================================
-   --  TEST GROUP 1: Basic State Verification
+   --  TEST GROUP 1: Basic State Verification (Tests 1.1 - 1.9)
    --  ===================================================================
    
    --  1.1: Initial state is correct
@@ -220,12 +220,12 @@ procedure Dekker_Tests is
       
       Reset_State;
       
-      Assert (Wants_To_Enter (P0) = False, "1.1.1: P0 flag initially False");
-      Assert (Wants_To_Enter (P1) = False, "1.1.2: P1 flag initially False");
-      Assert (Turn = P0, "1.1.3: Turn initially P0");
-      Assert (Shared_Counter = 0, "1.1.4: Counter initially 0");
-      Assert (Entry_Count (P0) = 0, "1.1.5: P0 entry count initially 0");
-      Assert (Entry_Count (P1) = 0, "1.1.6: P1 entry count initially 0");
+      Assert (Wants_To_Enter (P0) = False, "P0 flag initially False");
+      Assert (Wants_To_Enter (P1) = False, "P1 flag initially False");
+      Assert (Turn = P0, "Turn initially P0");
+      Assert (Shared_Counter = 0, "Counter initially 0");
+      Assert (Entry_Count (P0) = 0, "P0 entry count initially 0");
+      Assert (Entry_Count (P1) = 0, "P1 entry count initially 0");
    end Test_1_1_Initial_State;
 
    --  1.2: Turn alternation works
@@ -236,9 +236,9 @@ procedure Dekker_Tests is
       
       Turn := P0;
       Turn := P1;
-      Assert (Turn = P1, "1.2.1: Turn can be set to P1");
+      Assert (Turn = P1, "Turn can be set to P1");
       Turn := P0;
-      Assert (Turn = P0, "1.2.2: Turn can be set to P0");
+      Assert (Turn = P0, "Turn can be set to P0");
    end Test_1_2_Turn_Alternation;
 
    --  1.3: Flag reset works
@@ -249,13 +249,13 @@ procedure Dekker_Tests is
       
       Wants_To_Enter := (False, False);
       Wants_To_Enter (P0) := True;
-      Assert (Wants_To_Enter (P0) = True, "1.3.1: P0 flag can be set to True");
+      Assert (Wants_To_Enter (P0) = True, "P0 flag can be set to True");
       Wants_To_Enter (P0) := False;
-      Assert (Wants_To_Enter (P0) = False, "1.3.2: P0 flag can be reset to False");
+      Assert (Wants_To_Enter (P0) = False, "P0 flag can be reset to False");
       Wants_To_Enter (P1) := True;
-      Assert (Wants_To_Enter (P1) = True, "1.3.3: P1 flag can be set to True");
+      Assert (Wants_To_Enter (P1) = True, "P1 flag can be set to True");
       Wants_To_Enter (P1) := False;
-      Assert (Wants_To_Enter (P1) = False, "1.3.4: P1 flag can be reset to False");
+      Assert (Wants_To_Enter (P1) = False, "P1 flag can be reset to False");
    end Test_1_3_Flag_Reset;
 
    --  1.4: Counter monotonic increase
@@ -268,15 +268,15 @@ procedure Dekker_Tests is
       Shared_Counter := 0;
       
       Shared_Counter := Shared_Counter + 1;
-      Assert (Shared_Counter = 1, "1.4.1: Counter increments to 1");
+      Assert (Shared_Counter = 1, "Counter increments to 1");
       Shared_Counter := Shared_Counter + 1;
-      Assert (Shared_Counter = 2, "1.4.2: Counter increments to 2");
+      Assert (Shared_Counter = 2, "Counter increments to 2");
       Shared_Counter := Shared_Counter + 1;
-      Assert (Shared_Counter = 3, "1.4.3: Counter increments to 3");
+      Assert (Shared_Counter = 3, "Counter increments to 3");
    end Test_1_4_Counter_Monotonic;
 
    --  ===================================================================
-   --  TEST GROUP 2: Full Dekker Algorithm
+   --  TEST GROUP 2: Full Dekker Algorithm (Tests 2.1 - 2.9)
    --  ===================================================================
    
    --  2.1: Full Dekker maintains mutual exclusion
@@ -290,15 +290,15 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      delay To_Duration (Seconds (2));
+      delay To_Duration (Seconds (3));
       
       Assert (Mutual_Exclusion_Violation = False, 
-              "2.1.1: No mutual exclusion violation detected");
+              "No mutual exclusion violation detected");
       Assert (Shared_Counter = Test_Iterations * 2, 
-              "2.1.2: Counter = " & Integer'Image(Shared_Counter) & 
+              "Counter = " & Integer'Image(Shared_Counter) & 
               " (Expected: " & Integer'Image(Test_Iterations * 2) & ")");
-      Assert (Entry_Count (P0) > 0, "2.1.3: P0 entered critical section");
-      Assert (Entry_Count (P1) > 0, "2.1.4: P1 entered critical section");
+      Assert (Entry_Count (P0) > 0, "P0 entered critical section");
+      Assert (Entry_Count (P1) > 0, "P1 entered critical section");
    end Test_2_1_Full_Dekker_Mutual_Exclusion;
 
    --  2.2: Full Dekker ensures progress
@@ -312,14 +312,14 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      delay To_Duration (Seconds (2));
+      delay To_Duration (Seconds (3));
       
       Assert (Entry_Count (P0) = Test_Iterations, 
-              "2.2.1: P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
+              "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
       Assert (Entry_Count (P1) = Test_Iterations, 
-              "2.2.2: P1 completed all iterations: " & Integer'Image(Entry_Count (P1)));
+              "P1 completed all iterations: " & Integer'Image(Entry_Count (P1)));
       Assert (Shared_Counter = Test_Iterations * 2, 
-              "2.2.3: All iterations completed: " & Integer'Image(Shared_Counter));
+              "All iterations completed: " & Integer'Image(Shared_Counter));
    end Test_2_2_Full_Dekker_Progress;
 
    --  2.3: Full Dekker - No starvation
@@ -333,12 +333,12 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      delay To_Duration (Seconds (2));
+      delay To_Duration (Seconds (3));
       
-      Assert (Entry_Count (P0) > 0, "2.3.1: P0 got access");
-      Assert (Entry_Count (P1) > 0, "2.3.2: P1 got access");
+      Assert (Entry_Count (P0) > 0, "P0 got access");
+      Assert (Entry_Count (P1) > 0, "P1 got access");
       Assert (abs (Entry_Count (P0) - Entry_Count (P1)) <= 1, 
-              "2.3.3: Fair access: P0=" & Integer'Image(Entry_Count (P0)) & 
+              "Fair access: P0=" & Integer'Image(Entry_Count (P0)) & 
               ", P1=" & Integer'Image(Entry_Count (P1)));
    end Test_2_3_Full_Dekker_No_Starvation;
 
@@ -353,17 +353,17 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      delay To_Duration (Seconds (2));
+      delay To_Duration (Seconds (3));
       
       Assert (Shared_Counter > 0, 
-              "2.4.1: System made progress (no deadlock): " & 
+              "System made progress (no deadlock): " & 
               Integer'Image(Shared_Counter));
       Assert (Entry_Count (P0) > 0 or Entry_Count (P1) > 0, 
-              "2.4.2: At least one process entered CS");
+              "At least one process entered CS");
    end Test_2_4_No_Deadlock;
 
    --  ===================================================================
-   --  TEST GROUP 3: Naive Turn Taking Algorithm
+   --  TEST GROUP 3: Naive Turn Taking Algorithm (Tests 3.1 - 3.9)
    --  ===================================================================
    
    --  3.1: Naive Turn Taking with equal iterations
@@ -377,18 +377,18 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Naive_Turn_Taking;
       
-      delay To_Duration (Seconds (2));
+      delay To_Duration (Seconds (3));
       
       Assert (Entry_Count (P0) = 5, 
-              "3.1.1: P0 completed 5 iterations: " & Integer'Image(Entry_Count (P0)));
+              "P0 completed 5 iterations: " & Integer'Image(Entry_Count (P0)));
       Assert (Entry_Count (P1) = 5, 
-              "3.1.2: P1 completed 5 iterations: " & Integer'Image(Entry_Count (P1)));
+              "P1 completed 5 iterations: " & Integer'Image(Entry_Count (P1)));
       Assert (Shared_Counter = 10, 
-              "3.1.3: Total counter = " & Integer'Image(Shared_Counter) & " (Expected: 10)");
+              "Total counter = " & Integer'Image(Shared_Counter) & " (Expected: 10)");
    end Test_3_1_Naive_Turn_Taking_Equal;
 
    --  ===================================================================
-   --  TEST GROUP 4: Starvation Susceptible Algorithm
+   --  TEST GROUP 4: Starvation Susceptible Algorithm (Tests 4.1 - 4.9)
    --  ===================================================================
    
    --  4.1: Starvation Susceptible fairness
@@ -402,21 +402,21 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Starvation_Susceptible;
       
-      delay To_Duration (Seconds (2));
+      delay To_Duration (Seconds (3));
       
-      Assert (Entry_Count (P0) > 0, "4.1.1: P0 entered at least once");
-      Assert (Entry_Count (P1) > 0, "4.1.2: P1 entered at least once");
+      Assert (Entry_Count (P0) > 0, "P0 entered at least once");
+      Assert (Entry_Count (P1) > 0, "P1 entered at least once");
       Assert (Shared_Counter = Test_Iterations * 2, 
-              "4.1.3: Total entries correct: " & Integer'Image(Shared_Counter));
+              "Total entries correct: " & Integer'Image(Shared_Counter));
    end Test_4_1_Starvation_Susceptible_Fairness;
 
 begin
    Put_Line ("=== Dekker's Algorithm Test Suite ===");
    Put_Line ("Running tests in 4 groups:");
-   Put_Line ("  Group 1: Basic State Verification (4 tests)");
-   Put_Line ("  Group 2: Full Dekker Algorithm (4 tests)");
-   Put_Line ("  Group 3: Naive Turn Taking Algorithm (1 test)");
-   Put_Line ("  Group 4: Starvation Susceptible Algorithm (1 test)");
+   Put_Line ("  Group 1 (Tests 1.1-1.9): Basic State Verification");
+   Put_Line ("  Group 2 (Tests 2.1-2.9): Full Dekker Algorithm");
+   Put_Line ("  Group 3 (Tests 3.1-3.9): Naive Turn Taking Algorithm");
+   Put_Line ("  Group 4 (Tests 4.1-4.9): Starvation Susceptible Algorithm");
    Put_Line ("");
    
    --  Run all tests
