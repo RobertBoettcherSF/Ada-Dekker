@@ -10,9 +10,11 @@
 all: dekker dekker_tests
 
 dekker: dekker.adb dekker.gpr
+	mkdir -p obj
 	gnatmake -P dekker.gpr
 
 dekker_tests: tests/dekker_tests.adb tests/tests.gpr dekker.adb
+	mkdir -p obj
 	cd tests && gnatmake -P tests.gpr
 
 run: dekker
