@@ -42,6 +42,10 @@ procedure Dekker_Tests is
    type Boolean_Array is array (Process_Id) of Boolean;
    pragma Atomic_Components (Boolean_Array);
 
+   --  Integer array type for atomic components
+   type Integer_Array is array (Process_Id) of Integer;
+   pragma Atomic_Components (Integer_Array);
+
    --  Global flags for testing - MUST be declared before tasks that use them
    Wants_To_Enter : Boolean_Array := (False, False);
    pragma Atomic_Components (Boolean_Array);
@@ -55,8 +59,7 @@ procedure Dekker_Tests is
    pragma Atomic (Shared_Counter);
 
    --  For tracking critical section entries
-   Entry_Count : array (Process_Id) of Integer := (0, 0);
-   pragma Atomic_Components (array (Process_Id) of Integer);
+   Entry_Count : Integer_Array := (0, 0);
 
    --  For detecting mutual exclusion violations
    In_Critical_Section : Boolean_Array := (False, False);
