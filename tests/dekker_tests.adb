@@ -48,7 +48,6 @@ procedure Dekker_Tests is
 
    --  Global flags for testing - MUST be declared before tasks that use them
    Wants_To_Enter : Boolean_Array := (False, False);
-   pragma Atomic_Components (Boolean_Array);
 
    --  Turn indicates which process has priority to resolve ties.
    Turn : Process_Id := P0;
@@ -63,7 +62,6 @@ procedure Dekker_Tests is
 
    --  For detecting mutual exclusion violations
    In_Critical_Section : Boolean_Array := (False, False);
-   pragma Atomic_Components (Boolean_Array);
 
    Mutual_Exclusion_Violation : Boolean := False;
    pragma Atomic (Mutual_Exclusion_Violation);
