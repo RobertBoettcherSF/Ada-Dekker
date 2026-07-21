@@ -68,7 +68,6 @@ procedure Dekker_Tests is
 
    --  Suspension objects for synchronization
    Start_Signal : Ada.Synchronous_Task_Control.Suspension_Object;
-   Test_Complete : Ada.Synchronous_Task_Control.Suspension_Object;
 
    --  Test configuration
    type Algorithm_Variant is 
@@ -77,14 +76,13 @@ procedure Dekker_Tests is
       Full_Dekker);
 
    Current_Variant : Algorithm_Variant;
-   Test_Iterations : Integer := 10;
+   Test_Iterations : constant Integer := 10;
 
    --  Task type for worker processes
    task type Test_Worker (ID : Process_Id);
 
    task body Test_Worker is
       Other : Process_Id;
-      Local_Counter : Integer := 0;
    begin
       --  Determine the opposing process
       if ID = P0 then
@@ -115,7 +113,6 @@ procedure Dekker_Tests is
                --  === CRITICAL SECTION ===
                Shared_Counter := Shared_Counter + 1;
                Entry_Count (ID) := Entry_Count (ID) + 1;
-               Local_Counter := Local_Counter + 1;
                
                In_Critical_Section (ID) := False;
                
@@ -143,7 +140,6 @@ procedure Dekker_Tests is
                --  === CRITICAL SECTION ===
                Shared_Counter := Shared_Counter + 1;
                Entry_Count (ID) := Entry_Count (ID) + 1;
-               Local_Counter := Local_Counter + 1;
                
                In_Critical_Section (ID) := False;
                
@@ -174,7 +170,6 @@ procedure Dekker_Tests is
                --  === CRITICAL SECTION ===
                Shared_Counter := Shared_Counter + 1;
                Entry_Count (ID) := Entry_Count (ID) + 1;
-               Local_Counter := Local_Counter + 1;
                
                In_Critical_Section (ID) := False;
                
@@ -217,24 +212,39 @@ procedure Dekker_Tests is
       end loop;
    end Uneven_Worker;
 
-   --  ===================================================================
-   --  TEST 1: Initial state is correct
-   --  Assumption: All flags are initially False, Turn is P0, counter is 0
-   --  ===================================================================
-   procedure Test_Initial_State is
+   --  Reset all shared state for a new test
+   procedure Reset_State is
    begin
-      Put_Line ("");
-      Put_Line ("TEST 1: Initial State Verification");
-      
-      --  Reset state
       Wants_To_Enter := (False, False);
       Turn := P0;
       Shared_Counter := 0;
       Entry_Count := (0, 0);
       In_Critical_Section := (False, False);
       Mutual_Exclusion_Violation := False;
+      --  Reset the start signal so new tasks will wait
+      Ada.Synchronous_Task_Control.Set_False (Start_Signal);
+   end Reset_State;
+
+   --  Start workers and wait for completion
+   procedure Run_Workers (W0, W1 : in out Test_Worker) is
+   begin
+      --  Start both workers
+      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
       
-      --  Test assumptions
+      --  Wait for completion
+      delay To_Duration (Seconds (3));
+   end Run_Workers;
+
+   --  ===================================================================
+   --  TEST 1: Initial state is correct
+   --  ===================================================================
+   procedure Test_Initial_State is
+   begin
+      Put_Line ("");
+      Put_Line ("TEST 1: Initial State Verification");
+      
+      Reset_State;
+      
       Assert (Wants_To_Enter (P0) = False, "P0 flag initially False");
       Assert (Wants_To_Enter (P1) = False, "P1 flag initially False");
       Assert (Turn = P0, "Turn initially P0");
@@ -245,7 +255,6 @@ procedure Dekker_Tests is
 
    --  ===================================================================
    --  TEST 2: Full Dekker maintains mutual exclusion
-   --  Assumption: Only one process in critical section at a time
    --  ===================================================================
    procedure Test_Full_Dekker_Mutual_Exclusion is
       W0 : Test_Worker (P0);
@@ -254,22 +263,11 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 2: Full Dekker - Mutual Exclusion");
       
-      --  Reset state
+      Reset_State;
       Current_Variant := Full_Dekker;
-      Wants_To_Enter := (False, False);
-      Turn := P0;
-      Shared_Counter := 0;
-      Entry_Count := (0, 0);
-      In_Critical_Section := (False, False);
-      Mutual_Exclusion_Violation := False;
       
-      --  Start both workers
-      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
+      Run_Workers (W0, W1);
       
-      --  Wait for completion (workers run for Test_Iterations each)
-      delay To_Duration (Seconds (2));
-      
-      --  Check results
       Assert (Mutual_Exclusion_Violation = False, 
               "No mutual exclusion violation detected");
       Assert (Shared_Counter = Test_Iterations * 2, 
@@ -277,14 +275,10 @@ procedure Dekker_Tests is
               " (Expected: " & Integer'Image(Test_Iterations * 2) & ")");
       Assert (Entry_Count (P0) > 0, "P0 entered critical section");
       Assert (Entry_Count (P1) > 0, "P1 entered critical section");
-      
-      --  Cleanup
-      Ada.Synchronous_Task_Control.Set_True (Test_Complete);
    end Test_Full_Dekker_Mutual_Exclusion;
 
    --  ===================================================================
    --  TEST 3: Full Dekker ensures progress
-   --  Assumption: Both processes eventually enter critical section
    --  ===================================================================
    procedure Test_Full_Dekker_Progress is
       W0 : Test_Worker (P0);
@@ -293,22 +287,11 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 3: Full Dekker - Progress");
       
-      --  Reset state
+      Reset_State;
       Current_Variant := Full_Dekker;
-      Wants_To_Enter := (False, False);
-      Turn := P0;
-      Shared_Counter := 0;
-      Entry_Count := (0, 0);
-      In_Critical_Section := (False, False);
-      Mutual_Exclusion_Violation := False;
       
-      --  Start both workers
-      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
+      Run_Workers (W0, W1);
       
-      --  Wait for completion
-      delay To_Duration (Seconds (2));
-      
-      --  Check that both processes made progress
       Assert (Entry_Count (P0) >= Test_Iterations, 
               "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
       Assert (Entry_Count (P1) >= Test_Iterations, 
@@ -318,80 +301,52 @@ procedure Dekker_Tests is
    end Test_Full_Dekker_Progress;
 
    --  ===================================================================
-   --  TEST 4: Naive Turn Taking - fails with uneven iterations
-   --  Assumption: If one process does more iterations, the other gets stuck
+   --  TEST 4: Naive Turn Taking with equal iterations
    --  ===================================================================
-   procedure Test_Naive_Turn_Taking_Uneven is
+   procedure Test_Naive_Turn_Taking_Equal is
       W0 : Uneven_Worker (P0, 3);
       W1 : Uneven_Worker (P1, 3);
    begin
       Put_Line ("");
-      Put_Line ("TEST 4: Naive Turn Taking - Equal Iterations (No Deadlock)");
+      Put_Line ("TEST 4: Naive Turn Taking - Equal Iterations");
       
-      --  Reset state
+      Reset_State;
       Current_Variant := Naive_Turn_Taking;
-      Wants_To_Enter := (False, False);
-      Turn := P0;
-      Shared_Counter := 0;
-      Entry_Count := (0, 0);
       
-      --  Start both workers
       Ada.Synchronous_Task_Control.Set_True (Start_Signal);
-      
-      --  Wait for completion - with equal iterations, both should complete
       delay To_Duration (Seconds (2));
       
-      --  With naive turn taking and EQUAL iterations, both complete successfully
       Assert (Entry_Count (P0) = 3, 
               "P0 completed 3 iterations: " & Integer'Image(Entry_Count (P0)));
       Assert (Entry_Count (P1) = 3, 
               "P1 completed 3 iterations: " & Integer'Image(Entry_Count (P1)));
       Assert (Shared_Counter = 6, 
               "Total counter = " & Integer'Image(Shared_Counter) & " (Expected: 6)");
-   end Test_Naive_Turn_Taking_Uneven;
+   end Test_Naive_Turn_Taking_Equal;
 
    --  ===================================================================
-   --  TEST 5: Starvation Susceptible - P1 may be starved
-   --  Assumption: Without turn check, P1 might not get fair access
+   --  TEST 5: Starvation Susceptible fairness
    --  ===================================================================
    procedure Test_Starvation_Susceptible_Fairness is
       W0 : Test_Worker (P0);
       W1 : Test_Worker (P1);
    begin
       Put_Line ("");
-      Put_Line ("TEST 5: Starvation Susceptible - Fairness Issue");
+      Put_Line ("TEST 5: Starvation Susceptible - Fairness");
       
-      --  Reset state
+      Reset_State;
       Current_Variant := Starvation_Susceptible;
-      Wants_To_Enter := (False, False);
-      Turn := P0;
-      Shared_Counter := 0;
-      Entry_Count := (0, 0);
-      In_Critical_Section := (False, False);
-      Mutual_Exclusion_Violation := False;
       
-      --  Start both workers
-      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
+      Run_Workers (W0, W1);
       
-      --  Wait for completion
-      delay To_Duration (Seconds (2));
-      
-      --  With starvation susceptible variant, P0 might dominate
-      --  We test that at least some entries happen
       Assert (Entry_Count (P0) > 0, "P0 entered at least once");
       Assert (Entry_Count (P1) > 0, "P1 entered at least once");
-      
-      --  The total should still be correct
       Assert (Shared_Counter = Test_Iterations * 2, 
               "Total entries correct: " & Integer'Image(Shared_Counter));
-      
-      --  Note: This test might reveal starvation if P1 gets 0 entries
-      --  In practice, with the delay, both should get some access
    end Test_Starvation_Susceptible_Fairness;
 
    --  ===================================================================
    --  TEST 6: Full Dekker - No starvation
-   --  Assumption: Both processes get fair access over time
    --  ===================================================================
    procedure Test_Full_Dekker_No_Starvation is
       W0 : Test_Worker (P0);
@@ -400,22 +355,11 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 6: Full Dekker - No Starvation");
       
-      --  Reset state
+      Reset_State;
       Current_Variant := Full_Dekker;
-      Wants_To_Enter := (False, False);
-      Turn := P0;
-      Shared_Counter := 0;
-      Entry_Count := (0, 0);
-      In_Critical_Section := (False, False);
-      Mutual_Exclusion_Violation := False;
       
-      --  Start both workers
-      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
+      Run_Workers (W0, W1);
       
-      --  Wait for completion
-      delay To_Duration (Seconds (2));
-      
-      --  Both processes should have similar access
       Assert (Entry_Count (P0) > 0, "P0 got access");
       Assert (Entry_Count (P1) > 0, "P1 got access");
       Assert (abs (Entry_Count (P0) - Entry_Count (P1)) <= 2, 
@@ -424,36 +368,23 @@ procedure Dekker_Tests is
    end Test_Full_Dekker_No_Starvation;
 
    --  ===================================================================
-   --  TEST 7: Counter accuracy across all variants
-   --  Assumption: Shared counter increments correctly for each entry
+   --  TEST 7: Counter accuracy
    --  ===================================================================
    procedure Test_Counter_Accuracy is
    begin
       Put_Line ("");
       Put_Line ("TEST 7: Counter Accuracy");
       
-      --  Test each variant
       for V in Algorithm_Variant loop
          declare
             W0 : Test_Worker (P0);
             W1 : Test_Worker (P1);
          begin
-            --  Reset state
+            Reset_State;
             Current_Variant := V;
-            Wants_To_Enter := (False, False);
-            Turn := P0;
-            Shared_Counter := 0;
-            Entry_Count := (0, 0);
-            In_Critical_Section := (False, False);
-            Mutual_Exclusion_Violation := False;
             
-            --  Start both workers
-            Ada.Synchronous_Task_Control.Set_True (Start_Signal);
+            Run_Workers (W0, W1);
             
-            --  Wait for completion
-            delay To_Duration (Seconds (2));
-            
-            --  Check counter accuracy
             Assert (Shared_Counter = Test_Iterations * 2, 
                    Algorithm_Variant'Image(V) & " counter accurate: " & 
                    Integer'Image(Shared_Counter));
@@ -464,121 +395,54 @@ procedure Dekker_Tests is
    end Test_Counter_Accuracy;
 
    --  ===================================================================
-   --  TEST 8: Turn alternation works correctly
-   --  Assumption: Turn variable alternates between processes
+   --  TEST 8: Turn alternation
    --  ===================================================================
    procedure Test_Turn_Alternation is
    begin
       Put_Line ("");
       Put_Line ("TEST 8: Turn Alternation");
       
-      --  Reset state
       Turn := P0;
-      
-      --  Simulate a few alternations
       Turn := P1;
       Assert (Turn = P1, "Turn can be set to P1");
-      
       Turn := P0;
       Assert (Turn = P0, "Turn can be set to P0");
-      
-      --  Test that Turn is atomic
-      --  (This is verified by the pragma Atomic declaration)
    end Test_Turn_Alternation;
 
    --  ===================================================================
-   --  TEST 9: Flag reset works correctly
-   --  Assumption: Wants_To_Enter flags can be reset
+   --  TEST 9: Flag reset
    --  ===================================================================
    procedure Test_Flag_Reset is
    begin
       Put_Line ("");
       Put_Line ("TEST 9: Flag Reset");
       
-      --  Reset state
       Wants_To_Enter := (False, False);
-      
-      --  Set and reset flags
       Wants_To_Enter (P0) := True;
       Assert (Wants_To_Enter (P0) = True, "P0 flag can be set to True");
-      
       Wants_To_Enter (P0) := False;
       Assert (Wants_To_Enter (P0) = False, "P0 flag can be reset to False");
-      
       Wants_To_Enter (P1) := True;
       Assert (Wants_To_Enter (P1) = True, "P1 flag can be set to True");
-      
       Wants_To_Enter (P1) := False;
       Assert (Wants_To_Enter (P1) = False, "P1 flag can be reset to False");
    end Test_Flag_Reset;
 
    --  ===================================================================
-   --  TEST 10: Multiple iterations complete successfully
-   --  Assumption: All variants can handle multiple iterations
-   --  ===================================================================
-   procedure Test_Multiple_Iterations is
-   begin
-      Put_Line ("");
-      Put_Line ("TEST 10: Multiple Iterations");
-      
-      --  Test with more iterations
-      declare
-         Original_Iterations : Integer := Test_Iterations;
-      begin
-         Test_Iterations := 20;
-         
-         for V in Algorithm_Variant loop
-            declare
-               W0 : Test_Worker (P0);
-               W1 : Test_Worker (P1);
-            begin
-               Current_Variant := V;
-               Wants_To_Enter := (False, False);
-               Turn := P0;
-               Shared_Counter := 0;
-               Entry_Count := (0, 0);
-               In_Critical_Section := (False, False);
-               Mutual_Exclusion_Violation := False;
-               
-               Ada.Synchronous_Task_Control.Set_True (Start_Signal);
-               delay To_Duration (Seconds (3));
-               
-               Assert (Shared_Counter = Test_Iterations * 2, 
-                      Algorithm_Variant'Image(V) & " handles 20 iterations");
-            end;
-         end loop;
-         
-         Test_Iterations := Original_Iterations;
-      end;
-   end Test_Multiple_Iterations;
-
-   --  ===================================================================
-   --  TEST 11: No deadlock in Full Dekker
-   --  Assumption: Full Dekker algorithm never deadlocks
+   --  TEST 10: No deadlock in Full Dekker
    --  ===================================================================
    procedure Test_No_Deadlock is
       W0 : Test_Worker (P0);
       W1 : Test_Worker (P1);
    begin
       Put_Line ("");
-      Put_Line ("TEST 11: No Deadlock in Full Dekker");
+      Put_Line ("TEST 10: No Deadlock in Full Dekker");
       
-      --  Reset state
+      Reset_State;
       Current_Variant := Full_Dekker;
-      Wants_To_Enter := (False, False);
-      Turn := P0;
-      Shared_Counter := 0;
-      Entry_Count := (0, 0);
-      In_Critical_Section := (False, False);
-      Mutual_Exclusion_Violation := False;
       
-      --  Start both workers
-      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
+      Run_Workers (W0, W1);
       
-      --  Wait for completion - if deadlock occurs, this will timeout
-      delay To_Duration (Seconds (3));
-      
-      --  If we get here, no deadlock occurred
       Assert (Shared_Counter > 0, 
               "System made progress (no deadlock): " & 
               Integer'Image(Shared_Counter));
@@ -586,172 +450,24 @@ procedure Dekker_Tests is
               "At least one process entered CS");
    end Test_No_Deadlock;
 
-   --  ===================================================================
-   --  TEST 12: Concurrent execution verification
-   --  Assumption: Both processes actually run concurrently
-   --  ===================================================================
-   procedure Test_Concurrent_Execution is
-      W0 : Test_Worker (P0);
-      W1 : Test_Worker (P1);
-      Start_Time : Time;
-      End_Time : Time;
-   begin
-      Put_Line ("");
-      Put_Line ("TEST 12: Concurrent Execution Verification");
-      
-      --  Reset state
-      Current_Variant := Full_Dekker;
-      Wants_To_Enter := (False, False);
-      Turn := P0;
-      Shared_Counter := 0;
-      Entry_Count := (0, 0);
-      In_Critical_Section := (False, False);
-      Mutual_Exclusion_Violation := False;
-      
-      Start_Time := Clock;
-      
-      --  Start both workers
-      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
-      
-      --  Wait for completion
-      delay To_Duration (Seconds (2));
-      
-      End_Time := Clock;
-      
-      --  If both ran sequentially, it would take ~200ms (10 iterations * 20ms)
-      --  With concurrency, it should be less
-      --  Note: This is a weak test as timing can vary
-      Assert (Shared_Counter = Test_Iterations * 2, 
-              "Both processes completed");
-      Assert (Entry_Count (P0) > 0 and Entry_Count (P1) > 0, 
-              "Both processes executed");
-   end Test_Concurrent_Execution;
-
-   --  ===================================================================
-   --  TEST 13: Starvation variant - can lead to unfairness
-   --  Assumption: Without proper turn checking, one process may dominate
-   --  ===================================================================
-   procedure Test_Starvation_Variant_Unfairness is
-      W0 : Test_Worker (P0);
-      W1 : Test_Worker (P1);
-   begin
-      Put_Line ("");
-      Put_Line ("TEST 13: Starvation Variant - Potential Unfairness");
-      
-      --  Reset state with P0 having initial advantage
-      Current_Variant := Starvation_Susceptible;
-      Wants_To_Enter := (False, False);
-      Turn := P0;
-      Shared_Counter := 0;
-      Entry_Count := (0, 0);
-      In_Critical_Section := (False, False);
-      Mutual_Exclusion_Violation := False;
-      
-      --  Start both workers
-      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
-      
-      --  Wait for completion
-      delay To_Duration (Seconds (2));
-      
-      --  In starvation susceptible variant, P0 might get more entries
-      --  This tests the assumption that the algorithm is unfair
-      --  Note: This might be proven false if P1 gets equal access
-      Assert (Entry_Count (P0) > 0, "P0 got some access");
-      Assert (Entry_Count (P1) > 0, "P1 got some access");
-      Assert (Shared_Counter = Test_Iterations * 2, 
-              "Total entries correct");
-   end Test_Starvation_Variant_Unfairness;
-
-   --  ===================================================================
-   --  TEST 14: Critical section protection
-   --  Assumption: Critical section is properly protected
-   --  ===================================================================
-   procedure Test_Critical_Section_Protection is
-      W0 : Test_Worker (P0);
-      W1 : Test_Worker (P1);
-   begin
-      Put_Line ("");
-      Put_Line ("TEST 14: Critical Section Protection");
-      
-      --  Reset state
-      Current_Variant := Full_Dekker;
-      Wants_To_Enter := (False, False);
-      Turn := P0;
-      Shared_Counter := 0;
-      Entry_Count := (0, 0);
-      In_Critical_Section := (False, False);
-      Mutual_Exclusion_Violation := False;
-      
-      --  Start both workers
-      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
-      
-      --  Wait for completion
-      delay To_Duration (Seconds (2));
-      
-      --  The counter should be exactly 2 * Test_Iterations
-      Assert (Mutual_Exclusion_Violation = False, 
-              "No mutual exclusion violation");
-      Assert (Shared_Counter = Test_Iterations * 2, 
-              "Counter is correct: " & Integer'Image(Shared_Counter));
-      Assert (Entry_Count (P0) + Entry_Count (P1) = Test_Iterations * 2, 
-              "Entry counts sum correctly");
-   end Test_Critical_Section_Protection;
-
-   --  ===================================================================
-   --  TEST 15: All variants complete
-   --  Assumption: All algorithm variants can complete their work
-   --  ===================================================================
-   procedure Test_All_Variants_Complete is
-   begin
-      Put_Line ("");
-      Put_Line ("TEST 15: All Variants Complete");
-      
-      for V in Algorithm_Variant loop
-         declare
-            W0 : Test_Worker (P0);
-            W1 : Test_Worker (P1);
-         begin
-            Current_Variant := V;
-            Wants_To_Enter := (False, False);
-            Turn := P0;
-            Shared_Counter := 0;
-            Entry_Count := (0, 0);
-            In_Critical_Section := (False, False);
-            Mutual_Exclusion_Violation := False;
-            
-            Ada.Synchronous_Task_Control.Set_True (Start_Signal);
-            delay To_Duration (Seconds (2));
-            
-            Assert (Shared_Counter = Test_Iterations * 2, 
-                   Algorithm_Variant'Image(V) & " completed successfully");
-         end;
-      end loop;
-   end Test_All_Variants_Complete;
-
 begin
    Put_Line ("=== Dekker's Algorithm Test Suite ===");
    Put_Line ("");
    
-   --  Initialize suspension objects
+   --  Initialize suspension object
    Ada.Synchronous_Task_Control.Set_False (Start_Signal);
-   Ada.Synchronous_Task_Control.Set_False (Test_Complete);
    
    --  Run all tests
    Test_Initial_State;
    Test_Full_Dekker_Mutual_Exclusion;
    Test_Full_Dekker_Progress;
-   Test_Naive_Turn_Taking_Uneven;
+   Test_Naive_Turn_Taking_Equal;
    Test_Starvation_Susceptible_Fairness;
    Test_Full_Dekker_No_Starvation;
    Test_Counter_Accuracy;
    Test_Turn_Alternation;
    Test_Flag_Reset;
-   Test_Multiple_Iterations;
    Test_No_Deadlock;
-   Test_Concurrent_Execution;
-   Test_Starvation_Variant_Unfairness;
-   Test_Critical_Section_Protection;
-   Test_All_Variants_Complete;
    
    --  Print summary
    Put_Line ("");

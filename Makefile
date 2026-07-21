@@ -19,7 +19,8 @@ run: dekker
 	./obj/dekker
 
 test: dekker_tests
-	cd tests && ./obj/dekker_tests
+	./obj/dekker_tests
 
 clean:
 	rm -rf obj tests/obj *.o *.ali *.bexch
+	cd tests && rm -f *.o *.ali *.bexch
