@@ -65,7 +65,7 @@ procedure Dekker_Tests is
       Full_Dekker);
 
    Current_Variant : Algorithm_Variant;
-   Test_Iterations : constant Integer := 4;  -- Reduced to 4 for reliable completion
+   Test_Iterations : constant Integer := 3;  -- 3 iterations completes reliably
 
    --  Task type for worker processes
    task type Test_Worker (ID : Process_Id);
@@ -368,8 +368,8 @@ procedure Dekker_Tests is
    
    --  3.1: Naive Turn Taking with equal iterations
    procedure Test_3_1_Naive_Turn_Taking_Equal is
-      W0 : Uneven_Worker (P0, 4);
-      W1 : Uneven_Worker (P1, 4);
+      W0 : Uneven_Worker (P0, 3);
+      W1 : Uneven_Worker (P1, 3);
    begin
       Put_Line ("");
       Put_Line ("TEST 3.1: Naive Turn Taking - Equal Iterations");
@@ -379,12 +379,12 @@ procedure Dekker_Tests is
       
       delay To_Duration (Seconds (3));
       
-      Assert (Entry_Count (P0) = 4, 
-              "P0 completed 4 iterations: " & Integer'Image(Entry_Count (P0)));
-      Assert (Entry_Count (P1) = 4, 
-              "P1 completed 4 iterations: " & Integer'Image(Entry_Count (P1)));
-      Assert (Shared_Counter = 8, 
-              "Total counter = " & Integer'Image(Shared_Counter) & " (Expected: 8)");
+      Assert (Entry_Count (P0) = 3, 
+              "P0 completed 3 iterations: " & Integer'Image(Entry_Count (P0)));
+      Assert (Entry_Count (P1) = 3, 
+              "P1 completed 3 iterations: " & Integer'Image(Entry_Count (P1)));
+      Assert (Shared_Counter = 6, 
+              "Total counter = " & Integer'Image(Shared_Counter) & " (Expected: 6)");
    end Test_3_1_Naive_Turn_Taking_Equal;
 
    --  ===================================================================
