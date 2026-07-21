@@ -5,7 +5,6 @@
 
 with Ada.Text_IO;
 with Ada.Real_Time;
-with Ada.Synchronous_Task_Control;
 
 procedure Dekker_Tests is
    use Ada.Text_IO;
@@ -247,9 +246,6 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      --  Wait a bit for tasks to start
-      delay To_Duration (Seconds (0.1));
-      
       --  Wait for completion
       delay To_Duration (Seconds (3));
       
@@ -278,9 +274,6 @@ procedure Dekker_Tests is
       
       Reset_State;
       Current_Variant := Full_Dekker;
-      
-      --  Wait a bit for tasks to start
-      delay To_Duration (Seconds (0.1));
       
       --  Wait for completion
       delay To_Duration (Seconds (3));
@@ -338,9 +331,6 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Starvation_Susceptible;
       
-      --  Wait a bit for tasks to start
-      delay To_Duration (Seconds (0.1));
-      
       --  Wait for completion
       delay To_Duration (Seconds (3));
       
@@ -366,9 +356,6 @@ procedure Dekker_Tests is
       
       Reset_State;
       Current_Variant := Full_Dekker;
-      
-      --  Wait a bit for tasks to start
-      delay To_Duration (Seconds (0.1));
       
       --  Wait for completion
       delay To_Duration (Seconds (3));
@@ -396,9 +383,6 @@ procedure Dekker_Tests is
       
       Reset_State;
       Current_Variant := Full_Dekker;
-      
-      --  Wait a bit for tasks to start
-      delay To_Duration (Seconds (0.1));
       
       --  Wait for completion
       delay To_Duration (Seconds (3));
