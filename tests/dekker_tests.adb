@@ -70,7 +70,8 @@ procedure Dekker_Tests is
 
    --  Suspension objects for task synchronization
    Start_Signal : Ada.Synchronous_Task_Control.Suspension_Object;
-   Done_Signal : Ada.Synchronous_Task_Control.Suspension_Object;
+   Done_Signal_P0 : Ada.Synchronous_Task_Control.Suspension_Object;
+   Done_Signal_P1 : Ada.Synchronous_Task_Control.Suspension_Object;
 
    --  Task type for worker processes
    task type Test_Worker (ID : Process_Id);
@@ -178,7 +179,11 @@ procedure Dekker_Tests is
       end loop;
       
       --  Signal that this worker is done
-      Ada.Synchronous_Task_Control.Set_True (Done_Signal);
+      if ID = P0 then
+         Ada.Synchronous_Task_Control.Set_True (Done_Signal_P0);
+      else
+         Ada.Synchronous_Task_Control.Set_True (Done_Signal_P1);
+      end if;
       
    end Test_Worker;
 
@@ -210,7 +215,11 @@ procedure Dekker_Tests is
       end loop;
       
       --  Signal that this worker is done
-      Ada.Synchronous_Task_Control.Set_True (Done_Signal);
+      if ID = P0 then
+         Ada.Synchronous_Task_Control.Set_True (Done_Signal_P0);
+      else
+         Ada.Synchronous_Task_Control.Set_True (Done_Signal_P1);
+      end if;
       
    end Naive_Worker;
 
@@ -225,55 +234,52 @@ procedure Dekker_Tests is
       Mutual_Exclusion_Violation := False;
       --  Reset signals
       Ada.Synchronous_Task_Control.Set_False (Start_Signal);
-      Ada.Synchronous_Task_Control.Set_False (Done_Signal);
+      Ada.Synchronous_Task_Control.Set_False (Done_Signal_P0);
+      Ada.Synchronous_Task_Control.Set_False (Done_Signal_P1);
    end Reset_State;
 
    --  Run workers and wait for completion
-   procedure Run_And_Wait_Workers (W0, W1 : in out Test_Worker) is
-      Done_Count : Integer := 0;
+   procedure Run_And_Wait_Workers (W0 : in out Test_Worker; W1 : in out Test_Worker) is
    begin
-      --  Reset the done signal
-      Ada.Synchronous_Task_Control.Set_False (Done_Signal);
+      --  Reset the done signals
+      Ada.Synchronous_Task_Control.Set_False (Done_Signal_P0);
+      Ada.Synchronous_Task_Control.Set_False (Done_Signal_P1);
       
       --  Start both workers
       Ada.Synchronous_Task_Control.Set_True (Start_Signal);
       
-      --  Wait for both workers to signal completion
-      loop
+      --  Wait for both workers to signal completion (max 5 seconds total)
+      for I in 1 .. 50 loop
          delay To_Duration (Milliseconds (100));
-         if Ada.Synchronous_Task_Control.Current_State (Done_Signal) then
-            Done_Count := Done_Count + 1;
-            Ada.Synchronous_Task_Control.Set_False (Done_Signal);
-            exit when Done_Count >= 2;
-         end if;
+         exit when Ada.Synchronous_Task_Control.Current_State (Done_Signal_P0) 
+                   and Ada.Synchronous_Task_Control.Current_State (Done_Signal_P1);
       end loop;
       
-      --  Give a final moment for any remaining work
-      delay To_Duration (Milliseconds (100));
+      --  Reset start signal for next test
+      Ada.Synchronous_Task_Control.Set_False (Start_Signal);
+      
    end Run_And_Wait_Workers;
 
    --  Run naive workers and wait for completion
    procedure Run_And_Wait_Naive_Workers (W0 : in out Naive_Worker; W1 : in out Naive_Worker) is
-      Done_Count : Integer := 0;
    begin
-      --  Reset the done signal
-      Ada.Synchronous_Task_Control.Set_False (Done_Signal);
+      --  Reset the done signals
+      Ada.Synchronous_Task_Control.Set_False (Done_Signal_P0);
+      Ada.Synchronous_Task_Control.Set_False (Done_Signal_P1);
       
       --  Start both workers
       Ada.Synchronous_Task_Control.Set_True (Start_Signal);
       
-      --  Wait for both workers to signal completion
-      loop
+      --  Wait for both workers to signal completion (max 5 seconds total)
+      for I in 1 .. 50 loop
          delay To_Duration (Milliseconds (100));
-         if Ada.Synchronous_Task_Control.Current_State (Done_Signal) then
-            Done_Count := Done_Count + 1;
-            Ada.Synchronous_Task_Control.Set_False (Done_Signal);
-            exit when Done_Count >= 2;
-         end if;
+         exit when Ada.Synchronous_Task_Control.Current_State (Done_Signal_P0) 
+                   and Ada.Synchronous_Task_Control.Current_State (Done_Signal_P1);
       end loop;
       
-      --  Give a final moment for any remaining work
-      delay To_Duration (Milliseconds (100));
+      --  Reset start signal for next test
+      Ada.Synchronous_Task_Control.Set_False (Start_Signal);
+      
    end Run_And_Wait_Naive_Workers;
 
    --  ===================================================================
@@ -489,7 +495,8 @@ begin
    
    --  Initialize suspension objects
    Ada.Synchronous_Task_Control.Set_False (Start_Signal);
-   Ada.Synchronous_Task_Control.Set_False (Done_Signal);
+   Ada.Synchronous_Task_Control.Set_False (Done_Signal_P0);
+   Ada.Synchronous_Task_Control.Set_False (Done_Signal_P1);
    
    --  Run all tests
    --  Group 1: Basic State
