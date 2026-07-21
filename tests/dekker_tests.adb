@@ -239,13 +239,13 @@ procedure Dekker_Tests is
    end Reset_State;
 
    --  Run workers and wait for completion
-   procedure Run_And_Wait_Workers (W0 : in out Test_Worker; W1 : in out Test_Worker) is
+   procedure Run_And_Wait_Workers (W0 : Test_Worker; W1 : Test_Worker) is
    begin
       --  Reset the done signals
       Ada.Synchronous_Task_Control.Set_False (Done_Signal_P0);
       Ada.Synchronous_Task_Control.Set_False (Done_Signal_P1);
       
-      --  Start both workers
+      --  Start both workers by setting the start signal
       Ada.Synchronous_Task_Control.Set_True (Start_Signal);
       
       --  Wait for both workers to signal completion (max 5 seconds total)
@@ -261,13 +261,13 @@ procedure Dekker_Tests is
    end Run_And_Wait_Workers;
 
    --  Run naive workers and wait for completion
-   procedure Run_And_Wait_Naive_Workers (W0 : in out Naive_Worker; W1 : in out Naive_Worker) is
+   procedure Run_And_Wait_Naive_Workers (W0 : Naive_Worker; W1 : Naive_Worker) is
    begin
       --  Reset the done signals
       Ada.Synchronous_Task_Control.Set_False (Done_Signal_P0);
       Ada.Synchronous_Task_Control.Set_False (Done_Signal_P1);
       
-      --  Start both workers
+      --  Start both workers by setting the start signal
       Ada.Synchronous_Task_Control.Set_True (Start_Signal);
       
       --  Wait for both workers to signal completion (max 5 seconds total)
