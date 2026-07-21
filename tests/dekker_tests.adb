@@ -5,6 +5,7 @@
 
 with Ada.Text_IO;
 with Ada.Real_Time;
+with Ada.Synchronous_Task_Control;
 
 procedure Dekker_Tests is
    use Ada.Text_IO;
@@ -67,7 +68,11 @@ procedure Dekker_Tests is
    Current_Variant : Algorithm_Variant;
    Test_Iterations : constant Integer := 5;
 
-   --  Task type for worker processes - declared at procedure level
+   --  Suspension objects for task synchronization
+   Start_Signal : Ada.Synchronous_Task_Control.Suspension_Object;
+   Done_Signal : Ada.Synchronous_Task_Control.Suspension_Object;
+
+   --  Task type for worker processes
    task type Test_Worker (ID : Process_Id);
 
    task body Test_Worker is
@@ -79,6 +84,9 @@ procedure Dekker_Tests is
       else
          Other := P0;
       end if;
+
+      --  Wait for start signal
+      Ada.Synchronous_Task_Control.Suspend_Until_True (Start_Signal);
 
       for I in 1 .. Test_Iterations loop
          case Current_Variant is
@@ -169,7 +177,42 @@ procedure Dekker_Tests is
          delay To_Duration (Milliseconds (1));
       end loop;
       
+      --  Signal that this worker is done
+      Ada.Synchronous_Task_Control.Set_True (Done_Signal);
+      
    end Test_Worker;
+
+   --  Task type for Naive Turn Taking test
+   task type Naive_Worker (ID : Process_Id; Count : Integer);
+
+   task body Naive_Worker is
+      Other : Process_Id;
+   begin
+      if ID = P0 then
+         Other := P1;
+      else
+         Other := P0;
+      end if;
+
+      --  Wait for start signal
+      Ada.Synchronous_Task_Control.Suspend_Until_True (Start_Signal);
+
+      for I in 1 .. Count loop
+         while Turn /= ID loop
+            delay 0.0;
+         end loop;
+         
+         Shared_Counter := Shared_Counter + 1;
+         Entry_Count (ID) := Entry_Count (ID) + 1;
+         
+         Turn := Other;
+         delay To_Duration (Milliseconds (1));
+      end loop;
+      
+      --  Signal that this worker is done
+      Ada.Synchronous_Task_Control.Set_True (Done_Signal);
+      
+   end Naive_Worker;
 
    --  Reset all shared state for a new test
    procedure Reset_State is
@@ -180,7 +223,58 @@ procedure Dekker_Tests is
       Entry_Count := (0, 0);
       In_Critical_Section := (False, False);
       Mutual_Exclusion_Violation := False;
+      --  Reset signals
+      Ada.Synchronous_Task_Control.Set_False (Start_Signal);
+      Ada.Synchronous_Task_Control.Set_False (Done_Signal);
    end Reset_State;
+
+   --  Run workers and wait for completion
+   procedure Run_And_Wait_Workers (W0, W1 : in out Test_Worker) is
+      Done_Count : Integer := 0;
+   begin
+      --  Reset the done signal
+      Ada.Synchronous_Task_Control.Set_False (Done_Signal);
+      
+      --  Start both workers
+      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
+      
+      --  Wait for both workers to signal completion
+      loop
+         delay To_Duration (Milliseconds (100));
+         if Ada.Synchronous_Task_Control.Current_State (Done_Signal) then
+            Done_Count := Done_Count + 1;
+            Ada.Synchronous_Task_Control.Set_False (Done_Signal);
+            exit when Done_Count >= 2;
+         end if;
+      end loop;
+      
+      --  Give a final moment for any remaining work
+      delay To_Duration (Milliseconds (100));
+   end Run_And_Wait_Workers;
+
+   --  Run naive workers and wait for completion
+   procedure Run_And_Wait_Naive_Workers (W0 : in out Naive_Worker; W1 : in out Naive_Worker) is
+      Done_Count : Integer := 0;
+   begin
+      --  Reset the done signal
+      Ada.Synchronous_Task_Control.Set_False (Done_Signal);
+      
+      --  Start both workers
+      Ada.Synchronous_Task_Control.Set_True (Start_Signal);
+      
+      --  Wait for both workers to signal completion
+      loop
+         delay To_Duration (Milliseconds (100));
+         if Ada.Synchronous_Task_Control.Current_State (Done_Signal) then
+            Done_Count := Done_Count + 1;
+            Ada.Synchronous_Task_Control.Set_False (Done_Signal);
+            exit when Done_Count >= 2;
+         end if;
+      end loop;
+      
+      --  Give a final moment for any remaining work
+      delay To_Duration (Milliseconds (100));
+   end Run_And_Wait_Naive_Workers;
 
    --  ===================================================================
    --  TEST GROUP 1: Basic State Verification (Tests 1.1 - 1.9)
@@ -264,8 +358,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      --  Wait for tasks to complete - they run asynchronously
-      delay To_Duration (Seconds (5));
+      Run_And_Wait_Workers (W0, W1);
       
       Assert (Mutual_Exclusion_Violation = False, 
               "No mutual exclusion violation detected");
@@ -287,8 +380,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      --  Wait for tasks to complete
-      delay To_Duration (Seconds (5));
+      Run_And_Wait_Workers (W0, W1);
       
       Assert (Entry_Count (P0) = Test_Iterations, 
               "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
@@ -309,8 +401,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      --  Wait for tasks to complete
-      delay To_Duration (Seconds (5));
+      Run_And_Wait_Workers (W0, W1);
       
       Assert (Entry_Count (P0) > 0, "P0 got access");
       Assert (Entry_Count (P1) > 0, "P1 got access");
@@ -330,8 +421,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      --  Wait for tasks to complete
-      delay To_Duration (Seconds (5));
+      Run_And_Wait_Workers (W0, W1);
       
       Assert (Shared_Counter > 0, 
               "System made progress (no deadlock): " & 
@@ -344,32 +434,6 @@ procedure Dekker_Tests is
    --  TEST GROUP 3: Naive Turn Taking Algorithm (Tests 3.1 - 3.9)
    --  ===================================================================
    
-   --  Task type for Naive Turn Taking test
-   task type Naive_Worker (ID : Process_Id; Count : Integer);
-
-   task body Naive_Worker is
-      Other : Process_Id;
-   begin
-      if ID = P0 then
-         Other := P1;
-      else
-         Other := P0;
-      end if;
-
-      for I in 1 .. Count loop
-         while Turn /= ID loop
-            delay 0.0;
-         end loop;
-         
-         Shared_Counter := Shared_Counter + 1;
-         Entry_Count (ID) := Entry_Count (ID) + 1;
-         
-         Turn := Other;
-         delay To_Duration (Milliseconds (1));
-      end loop;
-      
-   end Naive_Worker;
-
    --  3.1: Naive Turn Taking with equal iterations
    procedure Test_3_1_Naive_Turn_Taking_Equal is
       W0 : Naive_Worker (P0, 5);
@@ -381,8 +445,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Naive_Turn_Taking;
       
-      --  Wait for tasks to complete
-      delay To_Duration (Seconds (5));
+      Run_And_Wait_Naive_Workers (W0, W1);
       
       Assert (Entry_Count (P0) = 5, 
               "P0 completed 5 iterations: " & Integer'Image(Entry_Count (P0)));
@@ -407,8 +470,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Starvation_Susceptible;
       
-      --  Wait for tasks to complete
-      delay To_Duration (Seconds (5));
+      Run_And_Wait_Workers (W0, W1);
       
       Assert (Entry_Count (P0) > 0, "P0 entered at least once");
       Assert (Entry_Count (P1) > 0, "P1 entered at least once");
@@ -424,6 +486,10 @@ begin
    Put_Line ("  Group 3 (Tests 3.1-3.9): Naive Turn Taking Algorithm");
    Put_Line ("  Group 4 (Tests 4.1-4.9): Starvation Susceptible Algorithm");
    Put_Line ("");
+   
+   --  Initialize suspension objects
+   Ada.Synchronous_Task_Control.Set_False (Start_Signal);
+   Ada.Synchronous_Task_Control.Set_False (Done_Signal);
    
    --  Run all tests
    --  Group 1: Basic State
