@@ -65,9 +65,9 @@ procedure Dekker_Tests is
       Full_Dekker);
 
    Current_Variant : Algorithm_Variant;
-   Test_Iterations : constant Integer := 3;  -- 3 iterations completes reliably
+   Test_Iterations : constant Integer := 5;
 
-   --  Task type for worker processes
+   --  Task type for worker processes - declared at procedure level
    task type Test_Worker (ID : Process_Id);
 
    task body Test_Worker is
@@ -171,32 +171,6 @@ procedure Dekker_Tests is
       
    end Test_Worker;
 
-   --  Task type for uneven worker processes
-   task type Uneven_Worker (ID : Process_Id; Count : Integer);
-
-   task body Uneven_Worker is
-      Other : Process_Id;
-   begin
-      if ID = P0 then
-         Other := P1;
-      else
-         Other := P0;
-      end if;
-
-      for I in 1 .. Count loop
-         while Turn /= ID loop
-            delay 0.0;
-         end loop;
-         
-         Shared_Counter := Shared_Counter + 1;
-         Entry_Count (ID) := Entry_Count (ID) + 1;
-         
-         Turn := Other;
-         delay To_Duration (Milliseconds (1));
-      end loop;
-      
-   end Uneven_Worker;
-
    --  Reset all shared state for a new test
    procedure Reset_State is
    begin
@@ -290,7 +264,8 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      delay To_Duration (Seconds (3));
+      --  Wait for tasks to complete - they run asynchronously
+      delay To_Duration (Seconds (5));
       
       Assert (Mutual_Exclusion_Violation = False, 
               "No mutual exclusion violation detected");
@@ -312,7 +287,8 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      delay To_Duration (Seconds (3));
+      --  Wait for tasks to complete
+      delay To_Duration (Seconds (5));
       
       Assert (Entry_Count (P0) = Test_Iterations, 
               "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
@@ -333,7 +309,8 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      delay To_Duration (Seconds (3));
+      --  Wait for tasks to complete
+      delay To_Duration (Seconds (5));
       
       Assert (Entry_Count (P0) > 0, "P0 got access");
       Assert (Entry_Count (P1) > 0, "P1 got access");
@@ -353,7 +330,8 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      delay To_Duration (Seconds (3));
+      --  Wait for tasks to complete
+      delay To_Duration (Seconds (5));
       
       Assert (Shared_Counter > 0, 
               "System made progress (no deadlock): " & 
@@ -366,10 +344,36 @@ procedure Dekker_Tests is
    --  TEST GROUP 3: Naive Turn Taking Algorithm (Tests 3.1 - 3.9)
    --  ===================================================================
    
+   --  Task type for Naive Turn Taking test
+   task type Naive_Worker (ID : Process_Id; Count : Integer);
+
+   task body Naive_Worker is
+      Other : Process_Id;
+   begin
+      if ID = P0 then
+         Other := P1;
+      else
+         Other := P0;
+      end if;
+
+      for I in 1 .. Count loop
+         while Turn /= ID loop
+            delay 0.0;
+         end loop;
+         
+         Shared_Counter := Shared_Counter + 1;
+         Entry_Count (ID) := Entry_Count (ID) + 1;
+         
+         Turn := Other;
+         delay To_Duration (Milliseconds (1));
+      end loop;
+      
+   end Naive_Worker;
+
    --  3.1: Naive Turn Taking with equal iterations
    procedure Test_3_1_Naive_Turn_Taking_Equal is
-      W0 : Uneven_Worker (P0, 3);
-      W1 : Uneven_Worker (P1, 3);
+      W0 : Naive_Worker (P0, 5);
+      W1 : Naive_Worker (P1, 5);
    begin
       Put_Line ("");
       Put_Line ("TEST 3.1: Naive Turn Taking - Equal Iterations");
@@ -377,14 +381,15 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Naive_Turn_Taking;
       
-      delay To_Duration (Seconds (3));
+      --  Wait for tasks to complete
+      delay To_Duration (Seconds (5));
       
-      Assert (Entry_Count (P0) = 3, 
-              "P0 completed 3 iterations: " & Integer'Image(Entry_Count (P0)));
-      Assert (Entry_Count (P1) = 3, 
-              "P1 completed 3 iterations: " & Integer'Image(Entry_Count (P1)));
-      Assert (Shared_Counter = 6, 
-              "Total counter = " & Integer'Image(Shared_Counter) & " (Expected: 6)");
+      Assert (Entry_Count (P0) = 5, 
+              "P0 completed 5 iterations: " & Integer'Image(Entry_Count (P0)));
+      Assert (Entry_Count (P1) = 5, 
+              "P1 completed 5 iterations: " & Integer'Image(Entry_Count (P1)));
+      Assert (Shared_Counter = 10, 
+              "Total counter = " & Integer'Image(Shared_Counter) & " (Expected: 10)");
    end Test_3_1_Naive_Turn_Taking_Equal;
 
    --  ===================================================================
@@ -402,7 +407,8 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Starvation_Susceptible;
       
-      delay To_Duration (Seconds (3));
+      --  Wait for tasks to complete
+      delay To_Duration (Seconds (5));
       
       Assert (Entry_Count (P0) > 0, "P0 entered at least once");
       Assert (Entry_Count (P1) > 0, "P1 entered at least once");
