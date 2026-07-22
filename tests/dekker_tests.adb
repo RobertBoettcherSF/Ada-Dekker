@@ -73,13 +73,12 @@ procedure Dekker_Tests is
    Done_Signal_P0 : Ada.Synchronous_Task_Control.Suspension_Object;
    Done_Signal_P1 : Ada.Synchronous_Task_Control.Suspension_Object;
 
-   --  Single pair of worker tasks - declared at procedure level
-   --  These tasks will be reused for all tests
-   W0 : Test_Worker (P0);
-   W1 : Test_Worker (P1);
-
    --  Task type for worker processes
    task type Test_Worker (ID : Process_Id);
+
+   --  Single pair of worker tasks - declared after task type definition
+   W0 : Test_Worker (P0);
+   W1 : Test_Worker (P1);
 
    task body Test_Worker is
       Other : Process_Id;
