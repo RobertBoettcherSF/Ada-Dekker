@@ -30,25 +30,25 @@ Contains three algorithm variants:
 
 ### Test Suite (`tests/dekker_tests.adb`)
 
-Comprehensive test suite organized into 4 groups:
+Comprehensive test suite with **10 test procedures** organized into 4 groups, totaling **33 assertions**:
 
-- **Group 1 (Tests 1.1-1.9): Basic State Verification**
-  - Tests initialization of flags, turn variable, and counters
-  - Verifies basic state management
+- **Group 1 (Tests 1.1-1.4): Basic State Verification**
+  - 1.1: Initial state verification (6 assertions)
+  - 1.2: Turn alternation (2 assertions)
+  - 1.3: Flag reset (4 assertions)
+  - 1.4: Counter monotonic increase (3 assertions)
 
-- **Group 2 (Tests 2.1-2.9): Full Dekker Algorithm**
-  - Tests mutual exclusion (no two processes in CS simultaneously)
-  - Tests progress (both processes complete their work)
-  - Tests no starvation (fair access between processes)
-  - Tests no deadlock (system always makes progress)
+- **Group 2 (Tests 2.1-2.4): Full Dekker Algorithm**
+  - 2.1: Mutual exclusion (4 assertions)
+  - 2.2: Progress (3 assertions)
+  - 2.3: No starvation (3 assertions)
+  - 2.4: No deadlock (2 assertions)
 
-- **Group 3 (Tests 3.1-3.9): Naive Turn Taking Algorithm**
-  - Tests that equal iterations work correctly
-  - Demonstrates the limitation with unequal iterations
+- **Group 3 (Test 3.1): Naive Turn Taking Algorithm**
+  - 3.1: Equal iterations (3 assertions)
 
-- **Group 4 (Tests 4.1-4.9): Starvation Susceptible Algorithm**
-  - Tests that both processes get access (fairness)
-  - Demonstrates potential starvation issues
+- **Group 4 (Test 4.1): Starvation Susceptible Algorithm**
+  - 4.1: Fairness (3 assertions)
 
 ## What the Tests Verify
 
@@ -148,10 +148,10 @@ Process P1 entering CS (Naive).
 === Dekker's Algorithm Test Suite ===
 Running with Test_Iterations =  3
 Running tests in 4 groups:
-  Group 1 (Tests 1.1-1.9): Basic State Verification
-  Group 2 (Tests 2.1-2.9): Full Dekker Algorithm
-  Group 3 (Tests 3.1-3.9): Naive Turn Taking Algorithm
-  Group 4 (Tests 4.1-4.9): Starvation Susceptible Algorithm
+  Group 1 (Tests 1.1-1.4): Basic State Verification
+  Group 2 (Tests 2.1-2.4): Full Dekker Algorithm
+  Group 3 (Tests 3.1): Naive Turn Taking Algorithm
+  Group 4 (Tests 4.1): Starvation Susceptible Algorithm
 
 TEST 1.1: Initial State Verification
   [PASS] P0 flag initially False
