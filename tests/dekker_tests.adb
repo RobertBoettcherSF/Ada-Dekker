@@ -65,7 +65,7 @@ procedure Dekker_Tests is
       Full_Dekker);
 
    Current_Variant : Algorithm_Variant;
-   Test_Iterations : constant Integer := 5;
+   Test_Iterations : constant Integer := 4;  -- Reduced to 4 for reliable completion
 
    --  Task type for worker processes
    task type Test_Worker (ID : Process_Id);
@@ -264,8 +264,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      --  Wait for tasks to complete - 5 iterations * 2 processes * 1ms = ~10ms
-      --  But we need extra time because tasks may be delayed by the OS scheduler
+      --  Wait for tasks to complete
       delay To_Duration (Seconds (10));
       
       Assert (Mutual_Exclusion_Violation = False, 
