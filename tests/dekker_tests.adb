@@ -183,6 +183,10 @@ procedure Dekker_Tests is
             delay To_Duration (Milliseconds (1));
          end loop;
          
+         --  Cleanup after all iterations: ensure flags are reset
+         --  This is critical for the next test run
+         Wants_To_Enter (ID) := False;
+         
          --  Signal that this worker is done with this test
          if ID = P0 then
             Ada.Synchronous_Task_Control.Set_True (Done_Signal_P0);
