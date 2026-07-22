@@ -67,17 +67,6 @@ procedure Dekker_Tests is
    Current_Variant : Algorithm_Variant;
    Test_Iterations : constant Integer := 3;
 
-   --  Current test name for debug output
-   Current_Test_Name : String (1 .. 50) := (others => ' ');
-   Current_Test_Length : Integer := 0;
-
-   --  Set current test name for debug
-   procedure Set_Test_Name (Name : String) is
-   begin
-      Current_Test_Length := Name'Length;
-      Current_Test_Name (1 .. Current_Test_Length) := Name;
-   end Set_Test_Name;
-
    --  Task type for worker processes
    task type Test_Worker (ID : Process_Id);
 
@@ -176,13 +165,9 @@ procedure Dekker_Tests is
 
          end case;
          
-         --  Simulate work outside of the critical section
-         delay To_Duration (Milliseconds (1));
+         --  NO DELAY between iterations - tasks run as fast as possible
+         --  delay To_Duration (Milliseconds (1));
       end loop;
-      
-      --  Debug: print when task completes
-      Put_Line ("    [DEBUG] " & Current_Test_Name (1 .. Current_Test_Length) & 
-                ": Worker " & Process_Id'Image(ID) & " completed");
       
    end Test_Worker;
 
@@ -207,7 +192,6 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 1.1: Initial State Verification");
       
-      Set_Test_Name ("1.1");
       Reset_State;
       
       Assert (Wants_To_Enter (P0) = False, "P0 flag initially False");
@@ -224,7 +208,6 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 1.2: Turn Alternation");
       
-      Set_Test_Name ("1.2");
       Turn := P0;
       Turn := P1;
       Assert (Turn = P1, "Turn can be set to P1");
@@ -238,7 +221,6 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 1.3: Flag Reset");
       
-      Set_Test_Name ("1.3");
       Wants_To_Enter := (False, False);
       Wants_To_Enter (P0) := True;
       Assert (Wants_To_Enter (P0) = True, "P0 flag can be set to True");
@@ -256,7 +238,6 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 1.4: Counter Monotonic Increase");
       
-      Set_Test_Name ("1.4");
       Reset_State;
       Shared_Counter := 0;
       
@@ -280,16 +261,11 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 2.1: Full Dekker - Mutual Exclusion");
       
-      Set_Test_Name ("2.1");
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      --  Wait for tasks to complete
-      delay To_Duration (Seconds (10));
-      
-      Put_Line ("    [DEBUG] 2.1 After wait: P0=" & Integer'Image(Entry_Count (P0)) & 
-                ", P1=" & Integer'Image(Entry_Count (P1)) & 
-                ", Counter=" & Integer'Image(Shared_Counter));
+      --  Wait for tasks to complete - no delay between iterations, should be fast
+      delay To_Duration (Seconds (5));
       
       Assert (Mutual_Exclusion_Violation = False, 
               "No mutual exclusion violation detected");
@@ -308,16 +284,11 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 2.2: Full Dekker - Progress");
       
-      Set_Test_Name ("2.2");
       Reset_State;
       Current_Variant := Full_Dekker;
       
       --  Wait for tasks to complete
-      delay To_Duration (Seconds (10));
-      
-      Put_Line ("    [DEBUG] 2.2 After wait: P0=" & Integer'Image(Entry_Count (P0)) & 
-                ", P1=" & Integer'Image(Entry_Count (P1)) & 
-                ", Counter=" & Integer'Image(Shared_Counter));
+      delay To_Duration (Seconds (5));
       
       Assert (Entry_Count (P0) = Test_Iterations, 
               "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
@@ -335,12 +306,11 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 2.3: Full Dekker - No Starvation");
       
-      Set_Test_Name ("2.3");
       Reset_State;
       Current_Variant := Full_Dekker;
       
       --  Wait for tasks to complete
-      delay To_Duration (Seconds (10));
+      delay To_Duration (Seconds (5));
       
       Assert (Entry_Count (P0) > 0, "P0 got access");
       Assert (Entry_Count (P1) > 0, "P1 got access");
@@ -357,12 +327,11 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 2.4: No Deadlock in Full Dekker");
       
-      Set_Test_Name ("2.4");
       Reset_State;
       Current_Variant := Full_Dekker;
       
       --  Wait for tasks to complete
-      delay To_Duration (Seconds (10));
+      delay To_Duration (Seconds (5));
       
       Assert (Shared_Counter > 0, 
               "System made progress (no deadlock): " & 
@@ -383,16 +352,11 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 3.1: Naive Turn Taking - Equal Iterations");
       
-      Set_Test_Name ("3.1");
       Reset_State;
       Current_Variant := Naive_Turn_Taking;
       
       --  Wait for tasks to complete
-      delay To_Duration (Seconds (10));
-      
-      Put_Line ("    [DEBUG] 3.1 After wait: P0=" & Integer'Image(Entry_Count (P0)) & 
-                ", P1=" & Integer'Image(Entry_Count (P1)) & 
-                ", Counter=" & Integer'Image(Shared_Counter));
+      delay To_Duration (Seconds (5));
       
       Assert (Entry_Count (P0) = Test_Iterations, 
               "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
@@ -415,16 +379,11 @@ procedure Dekker_Tests is
       Put_Line ("");
       Put_Line ("TEST 4.1: Starvation Susceptible - Fairness");
       
-      Set_Test_Name ("4.1");
       Reset_State;
       Current_Variant := Starvation_Susceptible;
       
       --  Wait for tasks to complete
-      delay To_Duration (Seconds (10));
-      
-      Put_Line ("    [DEBUG] 4.1 After wait: P0=" & Integer'Image(Entry_Count (P0)) & 
-                ", P1=" & Integer'Image(Entry_Count (P1)) & 
-                ", Counter=" & Integer'Image(Shared_Counter));
+      delay To_Duration (Seconds (5));
       
       Assert (Entry_Count (P0) > 0, "P0 entered at least once");
       Assert (Entry_Count (P1) > 0, "P1 entered at least once");
@@ -441,9 +400,6 @@ begin
    Put_Line ("  Group 3 (Tests 3.1-3.9): Naive Turn Taking Algorithm");
    Put_Line ("  Group 4 (Tests 4.1-4.9): Starvation Susceptible Algorithm");
    Put_Line ("");
-   
-   --  Initialize test name
-   Set_Test_Name ("init");
    
    --  Run all tests
    --  Group 1: Basic State
