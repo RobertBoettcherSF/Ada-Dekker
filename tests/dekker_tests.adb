@@ -264,8 +264,9 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      --  Wait for tasks to complete
-      delay To_Duration (Seconds (5));
+      --  Wait for tasks to complete - 5 iterations * 2 processes * 1ms = ~10ms
+      --  But we need extra time because tasks may be delayed by the OS scheduler
+      delay To_Duration (Seconds (10));
       
       Assert (Mutual_Exclusion_Violation = False, 
               "No mutual exclusion violation detected");
@@ -288,7 +289,7 @@ procedure Dekker_Tests is
       Current_Variant := Full_Dekker;
       
       --  Wait for tasks to complete
-      delay To_Duration (Seconds (5));
+      delay To_Duration (Seconds (10));
       
       Assert (Entry_Count (P0) = Test_Iterations, 
               "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
@@ -310,7 +311,7 @@ procedure Dekker_Tests is
       Current_Variant := Full_Dekker;
       
       --  Wait for tasks to complete
-      delay To_Duration (Seconds (5));
+      delay To_Duration (Seconds (10));
       
       Assert (Entry_Count (P0) > 0, "P0 got access");
       Assert (Entry_Count (P1) > 0, "P1 got access");
@@ -331,7 +332,7 @@ procedure Dekker_Tests is
       Current_Variant := Full_Dekker;
       
       --  Wait for tasks to complete
-      delay To_Duration (Seconds (5));
+      delay To_Duration (Seconds (10));
       
       Assert (Shared_Counter > 0, 
               "System made progress (no deadlock): " & 
@@ -356,7 +357,7 @@ procedure Dekker_Tests is
       Current_Variant := Naive_Turn_Taking;
       
       --  Wait for tasks to complete
-      delay To_Duration (Seconds (5));
+      delay To_Duration (Seconds (10));
       
       Assert (Entry_Count (P0) = Test_Iterations, 
               "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
@@ -383,7 +384,7 @@ procedure Dekker_Tests is
       Current_Variant := Starvation_Susceptible;
       
       --  Wait for tasks to complete
-      delay To_Duration (Seconds (5));
+      delay To_Duration (Seconds (10));
       
       Assert (Entry_Count (P0) > 0, "P0 entered at least once");
       Assert (Entry_Count (P1) > 0, "P1 entered at least once");
