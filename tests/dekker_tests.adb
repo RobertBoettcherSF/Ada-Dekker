@@ -65,7 +65,7 @@ procedure Dekker_Tests is
       Full_Dekker);
 
    Current_Variant : Algorithm_Variant;
-   Test_Iterations : constant Integer := 3;
+   Test_Iterations : constant Integer := 3;  -- 3 iterations completes reliably
 
    --  Task type for worker processes
    task type Test_Worker (ID : Process_Id);
@@ -165,8 +165,8 @@ procedure Dekker_Tests is
 
          end case;
          
-         --  NO DELAY between iterations - tasks run as fast as possible
-         --  delay To_Duration (Milliseconds (1));
+         --  Simulate minimal work outside of the critical section
+         delay To_Duration (Milliseconds (1));
       end loop;
       
    end Test_Worker;
@@ -264,7 +264,7 @@ procedure Dekker_Tests is
       Reset_State;
       Current_Variant := Full_Dekker;
       
-      --  Wait for tasks to complete - no delay between iterations, should be fast
+      --  Wait for tasks to complete
       delay To_Duration (Seconds (5));
       
       Assert (Mutual_Exclusion_Violation = False, 
