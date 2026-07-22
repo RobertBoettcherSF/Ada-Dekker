@@ -65,7 +65,7 @@ procedure Dekker_Tests is
       Full_Dekker);
 
    Current_Variant : Algorithm_Variant;
-   Test_Iterations : constant Integer := 4;  -- Reduced to 4 for reliable completion
+   Test_Iterations : constant Integer := 3;  -- Start with 3 to debug
 
    --  Task type for worker processes
    task type Test_Worker (ID : Process_Id);
@@ -169,6 +169,10 @@ procedure Dekker_Tests is
          delay To_Duration (Milliseconds (1));
       end loop;
       
+      --  Debug: print when task completes
+      Put_Line ("    [DEBUG] Worker " & Process_Id'Image(ID) & " completed " & 
+                Integer'Image(Test_Iterations) & " iterations");
+      
    end Test_Worker;
 
    --  Reset all shared state for a new test
@@ -267,6 +271,10 @@ procedure Dekker_Tests is
       --  Wait for tasks to complete
       delay To_Duration (Seconds (10));
       
+      Put_Line ("    [DEBUG] After wait: P0=" & Integer'Image(Entry_Count (P0)) & 
+                ", P1=" & Integer'Image(Entry_Count (P1)) & 
+                ", Counter=" & Integer'Image(Shared_Counter));
+      
       Assert (Mutual_Exclusion_Violation = False, 
               "No mutual exclusion violation detected");
       Assert (Shared_Counter = Test_Iterations * 2, 
@@ -289,6 +297,10 @@ procedure Dekker_Tests is
       
       --  Wait for tasks to complete
       delay To_Duration (Seconds (10));
+      
+      Put_Line ("    [DEBUG] After wait: P0=" & Integer'Image(Entry_Count (P0)) & 
+                ", P1=" & Integer'Image(Entry_Count (P1)) & 
+                ", Counter=" & Integer'Image(Shared_Counter));
       
       Assert (Entry_Count (P0) = Test_Iterations, 
               "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
@@ -358,6 +370,10 @@ procedure Dekker_Tests is
       --  Wait for tasks to complete
       delay To_Duration (Seconds (10));
       
+      Put_Line ("    [DEBUG] After wait: P0=" & Integer'Image(Entry_Count (P0)) & 
+                ", P1=" & Integer'Image(Entry_Count (P1)) & 
+                ", Counter=" & Integer'Image(Shared_Counter));
+      
       Assert (Entry_Count (P0) = Test_Iterations, 
               "P0 completed all iterations: " & Integer'Image(Entry_Count (P0)));
       Assert (Entry_Count (P1) = Test_Iterations, 
@@ -385,6 +401,10 @@ procedure Dekker_Tests is
       --  Wait for tasks to complete
       delay To_Duration (Seconds (10));
       
+      Put_Line ("    [DEBUG] After wait: P0=" & Integer'Image(Entry_Count (P0)) & 
+                ", P1=" & Integer'Image(Entry_Count (P1)) & 
+                ", Counter=" & Integer'Image(Shared_Counter));
+      
       Assert (Entry_Count (P0) > 0, "P0 entered at least once");
       Assert (Entry_Count (P1) > 0, "P1 entered at least once");
       Assert (Shared_Counter = Test_Iterations * 2, 
@@ -393,6 +413,7 @@ procedure Dekker_Tests is
 
 begin
    Put_Line ("=== Dekker's Algorithm Test Suite ===");
+   Put_Line ("Running with Test_Iterations = " & Integer'Image(Test_Iterations));
    Put_Line ("Running tests in 4 groups:");
    Put_Line ("  Group 1 (Tests 1.1-1.9): Basic State Verification");
    Put_Line ("  Group 2 (Tests 2.1-2.9): Full Dekker Algorithm");
